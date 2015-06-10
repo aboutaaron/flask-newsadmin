@@ -1,5 +1,6 @@
 import os
 import os.path as op
+from datetime import datetime
 
 from werkzeug import secure_filename
 from sqlalchemy import event
@@ -32,22 +33,35 @@ base_path = op.join(op.dirname(__file__), 'static')
 
 
 # Create models
-class Location(db.Model):
+class Banner(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.Unicode(64))
+    headline = db.Column(db.String(255), unique=True)
+    body = db.Column(db.Text())
+
+    created_on = db.Column(db.DateTime(), default=datetime.utcnow)
+    updated_on = db.Column(db.DateTime(), default=datetime.utcnow,
+                                          onupdate=datetime.utcnow)
+
+    def __init__(self, headline="", body=""):
+        self.headline = headline
+        self.body = body
+
+    def __repr__(self):
+        return '<Banner - {}>'.format(self.headline)
 
 
-class LocationImage(db.Model):
+
+class BannerImage(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    alt = db.Column(db.Unicode(128))
+    alt = db.Column(db.String(128))
     path = db.Column(db.String(64))
 
-    location_id = db.Column(db.Integer, db.ForeignKey(Location.id))
-    location = db.relation(Location, backref='images')
+    banner_id = db.Column(db.Integer, db.ForeignKey(Banner.id))
+    banner = db.relation(Banner, backref='images')
 
 
 # Register after_delete handler which will delete image file after model gets deleted
-@event.listens_for(LocationImage, 'after_delete')
+@event.listens_for(BannerImage, 'after_delete')
 def _handle_image_delete(mapper, conn, target):
     try:
         if target.path:
@@ -82,7 +96,7 @@ class InlineModelForm(InlineFormAdmin):
     form_label = 'Image'
 
     def __init__(self):
-        return super(InlineModelForm, self).__init__(LocationImage)
+        return super(InlineModelForm, self).__init__(BannerImage)
 
     def postprocess_form(self, form_class):
         form_class.upload = fields.FileField('Image')
@@ -97,20 +111,20 @@ class InlineModelForm(InlineFormAdmin):
 
 
 # Administrative class
-class LocationAdmin(ModelView):
+class BannerAdmin(ModelView):
     inline_model_form_converter = CustomInlineModelConverter
 
     inline_models = (InlineModelForm(),)
 
     def __init__(self):
-        super(LocationAdmin, self).__init__(Location, db.session, name='Locations')
+        super(BannerAdmin, self).__init__(Banner, db.session, name='Banners')
 
 
 # Simple page to show images
 @app.route('/')
 def index():
-    locations = db.session.query(Location).all()
-    return render_template('locations.html', locations=locations)
+    banners = db.session.query(Banner).all()
+    return render_template('banners.html', banners=banners)
 
 
 if __name__ == '__main__':
@@ -124,7 +138,7 @@ if __name__ == '__main__':
     admin = admin.Admin(app, name='Example: Inline Models')
 
     # Add views
-    admin.add_view(LocationAdmin())
+    admin.add_view(BannerAdmin())
 
     # Create DB
     db.create_all()

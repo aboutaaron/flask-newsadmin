@@ -32,7 +32,7 @@ base_path = op.join(op.dirname(__file__), 'static')
 
 
 # Create models
-class Banner(db.Model):
+class Location(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.Unicode(64))
 
